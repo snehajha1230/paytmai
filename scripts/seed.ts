@@ -152,6 +152,9 @@ async function main() {
         displayName: "Paytmai User",
         phone: "+91 98765 43210",
       },
+      $setOnInsert: {
+        accountBalance: 200_000,
+      },
     },
     { upsert: true },
   );
@@ -180,6 +183,8 @@ async function main() {
       contactId: { $in: [yogesh._id, mummyy._id] },
     }).exec();
     if (existing === 0) {
+      const t1 = new Date("2026-03-27T10:30:00.000Z");
+      const t2 = new Date("2026-03-23T14:00:00.000Z");
       await Transaction.insertMany([
         {
           userId: user._id,
@@ -187,7 +192,8 @@ async function main() {
           amount: 20000,
           message: "",
           status: "completed",
-          createdAt: new Date("2026-03-27T10:30:00.000Z"),
+          createdAt: t1,
+          simulatedAt: t1,
         },
         {
           userId: user._id,
@@ -195,11 +201,22 @@ async function main() {
           amount: 30,
           message: "",
           status: "completed",
-          createdAt: new Date("2026-03-23T14:00:00.000Z"),
+          createdAt: t2,
+          simulatedAt: t2,
         },
       ]);
     }
   }
+
+  const spentAgg = await Transaction.aggregate<{ _id: null; total: number }>([
+    { $match: { userId: user._id } },
+    { $group: { _id: null, total: { $sum: "$amount" } } },
+  ]).exec();
+  const totalSpent = spentAgg[0]?.total ?? 0;
+  await User.updateOne(
+    { _id: user._id },
+    { $set: { accountBalance: 200_000 - totalSpent } },
+  ).exec();
 
   console.log("Seeded user demo@paytmai.local, 12 contacts, sample transactions.");
 }

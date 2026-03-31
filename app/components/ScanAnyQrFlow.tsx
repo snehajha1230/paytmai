@@ -7,52 +7,25 @@ import {
   formatInrAmount,
   PinKeypad,
   SuccessDecor,
-  UpiAppLogos,
   VerifiedBadge,
 } from "@/app/components/pay-flow-shared";
 import type { PayAnyoneContact } from "@/lib/payee-types";
+import { generateQrPayee } from "@/lib/qr-payee";
 import { rupeesLine } from "@/lib/rupees-to-words";
 
-export type { PayAnyoneContact };
+type Phase = "scan" | "amount" | "pin" | "success";
 
-type RecentRow = PayAnyoneContact & {
-  transactionId: string;
-  contactId: string;
-  amount: number;
-  sentAt: string;
-  isQr?: boolean;
-  categoryTag?: string;
-};
-
-type Step = "list" | "amount" | "pin" | "success";
-
-function formatSentDay(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString("en-IN", {
-      day: "numeric",
-      month: "short",
-    });
-  } catch {
-    return "";
-  }
-}
-
-export default function PayAnyoneFlow({
+export default function ScanAnyQrFlow({
   open,
   onClose,
 }: {
   open: boolean;
   onClose: () => void;
 }) {
-  const [step, setStep] = useState<Step>("list");
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [contacts, setContacts] = useState<PayAnyoneContact[]>([]);
-  const [recent, setRecent] = useState<RecentRow[]>([]);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [loadingList, setLoadingList] = useState(false);
+  const [phase, setPhase] = useState<Phase>("scan");
+  const [payee, setPayee] = useState<PayAnyoneContact | null>(null);
 
-  const [selected, setSelected] = useState<PayAnyoneContact | null>(null);
-  const [query, setQuery] = useState("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [amountRaw, setAmountRaw] = useState("0");
   const [message, setMessage] = useState("");
   const [messageOpen, setMessageOpen] = useState(false);
@@ -71,66 +44,37 @@ export default function PayAnyoneFlow({
     seconds: string;
   } | null>(null);
 
-  const refreshContacts = useCallback(async () => {
-    setLoadingList(true);
-    setLoadError(null);
-    try {
-      const res = await fetch("/api/contacts", { credentials: "include" });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error(j.error ?? "Failed to load contacts");
-      }
-      const data = (await res.json()) as {
-        contacts: PayAnyoneContact[];
-        recent: RecentRow[];
-      };
-      setContacts(data.contacts);
-      setRecent(data.recent);
-    } catch (e) {
-      setLoadError(e instanceof Error ? e.message : "Failed to load");
-    } finally {
-      setLoadingList(false);
-    }
+  const resetAll = useCallback(() => {
+    setPhase("scan");
+    setPayee(null);
+    setConfirmOpen(false);
+    setAmountRaw("0");
+    setMessage("");
+    setMessageOpen(false);
+    setPin("");
+    setPinError(null);
+    setSuccessMeta(null);
+    setConfirmBalance(null);
+    setConfirmBalanceLoading(false);
+    setConfirmBalanceError(null);
   }, []);
 
   useEffect(() => {
-    if (open) {
-      void refreshContacts();
-    }
-  }, [open, refreshContacts]);
-
-  useEffect(() => {
-    if (!open) {
-      setStep("list");
-      setConfirmOpen(false);
-      setSelected(null);
-      setQuery("");
-      setAmountRaw("0");
-      setMessage("");
-      setMessageOpen(false);
-      setPin("");
-      setPinError(null);
-      setSuccessMeta(null);
-      setConfirmBalance(null);
-      setConfirmBalanceLoading(false);
-      setConfirmBalanceError(null);
-    }
-  }, [open]);
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return contacts;
-    return contacts.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.identifier.toLowerCase().includes(q),
-    );
-  }, [contacts, query]);
+    if (!open) resetAll();
+  }, [open, resetAll]);
 
   const amountNum = useMemo(() => {
     const n = parseFloat(amountRaw);
     return Number.isFinite(n) ? n : 0;
   }, [amountRaw]);
+
+  const simulateScan = useCallback(() => {
+    setPayee(generateQrPayee());
+    setAmountRaw("0");
+    setMessage("");
+    setMessageOpen(false);
+    setPhase("amount");
+  }, []);
 
   const pushAmountKey = (k: string) => {
     if (k === "+") return;
@@ -160,60 +104,27 @@ export default function PayAnyoneFlow({
     });
   };
 
-  const toggleFavorite = async (contactId: string) => {
-    if (!contactId) return;
-    try {
-      const res = await fetch(`/api/contacts/${contactId}/favorite`, {
-        method: "PATCH",
-        credentials: "include",
-      });
-      if (!res.ok) return;
-      const { favorite } = (await res.json()) as { favorite: boolean };
-      setContacts((cs) =>
-        cs.map((c) => (c.id === contactId ? { ...c, favorite } : c)),
-      );
-      setRecent((rs) =>
-        rs.map((r) =>
-          r.contactId === contactId ? { ...r, favorite } : r,
-        ),
-      );
-      if (selected?.id === contactId) {
-        setSelected({ ...selected, favorite });
-      }
-    } catch {
-      /* ignore */
-    }
-  };
-
   const submitPayment = async () => {
-    if (!selected || amountNum <= 0) return;
+    if (!payee || amountNum <= 0) return;
     setPayLoading(true);
     setPinError(null);
     const t0 = performance.now();
     try {
-      const payload = selected.qrPayment
-        ? {
-            kind: "qr" as const,
-            merchantName: selected.name,
-            identifier: selected.identifier,
-            initials: selected.initials,
-            avatarColor: selected.avatarColor,
-            tag: selected.categoryTag ?? "",
-            amount: amountNum,
-            message,
-            upiPin: pin,
-          }
-        : {
-            contactId: selected.id,
-            amount: amountNum,
-            message,
-            upiPin: pin,
-          };
       const res = await fetch("/api/payments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          kind: "qr",
+          merchantName: payee.name,
+          identifier: payee.identifier,
+          initials: payee.initials,
+          avatarColor: payee.avatarColor,
+          tag: payee.categoryTag,
+          amount: amountNum,
+          message,
+          upiPin: pin,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -227,11 +138,10 @@ export default function PayAnyoneFlow({
       const sec = ((t1 - t0) / 1000).toFixed(2);
       setSuccessMeta({
         amount: typeof data.amount === "number" ? data.amount : amountNum,
-        name: selected.name,
+        name: payee.name,
         seconds: sec,
       });
-      setStep("success");
-      void refreshContacts();
+      setPhase("success");
     } catch {
       setPinError("Network error");
       setPin("");
@@ -242,12 +152,21 @@ export default function PayAnyoneFlow({
 
   if (!open) return null;
 
+  const shellClass =
+    phase === "pin"
+      ? "min-h-[100dvh] bg-[#fff7ed] sm:min-h-0 sm:rounded-[28px]"
+      : phase === "success"
+        ? "min-h-[100dvh] bg-[#22c55e] sm:min-h-0"
+        : phase === "scan"
+          ? "min-h-[100dvh] rounded-none bg-[#0a0a0a] sm:min-h-[min(720px,92vh)] sm:rounded-[28px]"
+          : "rounded-t-3xl bg-[#f0f2f5] sm:rounded-[28px]";
+
   return (
     <div
       className="fixed inset-0 z-[100] flex items-end justify-center bg-black/45 p-0 sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="pay-anyone-title"
+      aria-labelledby="scan-qr-title"
     >
       <button
         type="button"
@@ -256,44 +175,113 @@ export default function PayAnyoneFlow({
         onClick={onClose}
       />
       <div
-        className={`relative flex max-h-[100dvh] w-full flex-col overflow-hidden shadow-2xl sm:max-h-[min(720px,92vh)] sm:max-w-[400px] sm:rounded-[28px] ${
-          step === "pin"
-            ? "min-h-[100dvh] bg-[#fff7ed] sm:min-h-0 sm:rounded-[28px]"
-            : step === "success"
-              ? "min-h-[100dvh] bg-[#22c55e] sm:min-h-0"
-              : "rounded-t-3xl bg-[#f0f2f5] sm:rounded-[28px]"
-        }`}
+        className={`relative flex max-h-[100dvh] w-full flex-col overflow-hidden shadow-2xl sm:max-h-[min(720px,92vh)] sm:max-w-[400px] ${shellClass}`}
         onClick={(e) => e.stopPropagation()}
       >
-        {step === "list" ? (
+        {phase === "scan" ? (
           <>
-            <header className="shrink-0 bg-[#f0f2f5] px-4 pb-2 pt-3 sm:pt-4">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="flex h-10 w-10 items-center justify-center rounded-full text-[#111] hover:bg-black/5"
-                  aria-label="Back"
-                >
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                    <path
-                      d="M15 6l-6 6 6 6"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </button>
-                <h2
-                  id="pay-anyone-title"
-                  className="text-lg font-bold text-[#111]"
-                >
-                  Send Money
-                </h2>
+            <header className="flex shrink-0 items-center justify-between px-3 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))] text-white">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10"
+                aria-label="Back"
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M15 6l-6 6 6 6"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+              <h2 id="scan-qr-title" className="text-[16px] font-semibold">
+                Scan any QR code
+              </h2>
+              <button
+                type="button"
+                className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10"
+                aria-label="More"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <circle cx="12" cy="5" r="1.8" />
+                  <circle cx="12" cy="12" r="1.8" />
+                  <circle cx="12" cy="19" r="1.8" />
+                </svg>
+              </button>
+            </header>
+
+            <button
+              type="button"
+              onClick={simulateScan}
+              className="relative mx-3 mt-1 flex min-h-[38vh] flex-1 flex-col rounded-lg bg-black ring-1 ring-white/10 sm:min-h-[280px]"
+              aria-label="Camera view — tap to simulate scanning a QR code"
+            >
+              <div
+                className="pointer-events-none absolute inset-y-2 right-2 w-1 rounded-full bg-gradient-to-b from-[#38bdf8] via-[#0ea5e9] to-[#0284c7] opacity-90 shadow-[0_0_12px_rgba(14,165,233,0.6)]"
+                style={{
+                  backgroundImage:
+                    "repeating-linear-gradient(180deg, transparent, transparent 3px, rgba(255,255,255,0.15) 3px, rgba(255,255,255,0.15) 5px)",
+                }}
+              />
+              <span className="pointer-events-none absolute bottom-4 left-0 right-0 text-center text-[12px] text-white/55">
+                Tap here to simulate scan
+              </span>
+            </button>
+
+            <div className="mt-3 flex shrink-0 items-center justify-center gap-2 px-3 pb-2">
+              <button
+                type="button"
+                className="flex h-12 w-12 items-center justify-center rounded-full bg-[#2a2a2a] text-white shadow-md"
+                aria-label="Flashlight"
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M10 2h4v3h-4V2zm0 5h4l-1 13H11L10 7zm2-5v3"
+                    stroke="currentColor"
+                    strokeWidth="1.4"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+              <div className="mx-1 flex max-w-[200px] flex-1 items-center gap-2 rounded-2xl bg-[#bae6fd]/95 px-3 py-2.5 shadow-sm">
+                <span className="text-lg" aria-hidden>
+                  🛡
+                </span>
+                <p className="text-left text-[11px] font-semibold leading-snug text-[#0c4a6e]">
+                  Secure your payments with fingerprint ›
+                </p>
               </div>
-              <UpiAppLogos />
-              <div className="relative mt-4">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#9ca3af]">
+              <button
+                type="button"
+                className="flex h-12 w-12 items-center justify-center rounded-full bg-[#2a2a2a] text-white shadow-md"
+                aria-label="Gallery"
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <rect
+                    x="3"
+                    y="5"
+                    width="18"
+                    height="14"
+                    rx="2"
+                    stroke="currentColor"
+                    strokeWidth="1.4"
+                  />
+                  <circle cx="8.5" cy="10" r="1.5" fill="currentColor" />
+                  <path
+                    d="M21 15l-5-5-4 4"
+                    stroke="currentColor"
+                    strokeWidth="1.4"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            <div className="shrink-0 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-1">
+              <div className="flex items-center gap-2 rounded-full bg-white py-2.5 pl-3 pr-2 shadow-lg">
+                <span className="text-[#9ca3af]">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                     <circle
                       cx="11"
@@ -312,166 +300,44 @@ export default function PayAnyoneFlow({
                 </span>
                 <input
                   type="search"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Enter Name, Number or UPI ID"
-                  className="w-full rounded-2xl border-0 bg-white py-3 pl-10 pr-3 text-[14px] shadow-sm outline-none ring-1 ring-[#e5e7eb] placeholder:text-[#9ca3af] focus:ring-2 focus:ring-[#00baf2]"
+                  readOnly
+                  placeholder="Enter Mob. Number or Name"
+                  className="min-w-0 flex-1 bg-transparent text-[13px] text-[#111] outline-none placeholder:text-[#9ca3af]"
+                  aria-hidden
                 />
-              </div>
-            </header>
-
-            <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-6 pt-2">
-              {loadError ? (
-                <p className="py-8 text-center text-sm text-red-600">
-                  {loadError}
-                </p>
-              ) : loadingList ? (
-                <p className="py-8 text-center text-sm text-[#666]">
-                  Loading…
-                </p>
-              ) : (
-                <>
-                  <div className="grid grid-cols-4 gap-x-2 gap-y-4">
-                    {filtered.map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => {
-                          setSelected(c);
-                          setAmountRaw("0");
-                          setMessage("");
-                          setMessageOpen(false);
-                          setStep("amount");
+                <div className="flex shrink-0 items-center gap-1 border-l border-[#e5e7eb] pl-2">
+                  <span className="text-[10px] font-bold text-[#64748b]">
+                    Recents
+                  </span>
+                  <div className="flex -space-x-2">
+                    {["#c4b5fd", "#86efac", "#fde047"].map((bg, i) => (
+                      <div
+                        key={bg}
+                        className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white text-[9px] font-bold text-[#1e1b4b]"
+                        style={{
+                          backgroundColor: bg,
+                          zIndex: 3 - i,
                         }}
-                        className="flex flex-col items-center gap-1.5 text-center"
                       >
-                        <div className="relative">
-                          <AvatarBubble contact={c} size={52} />
-                          {c.starredSuggestion ? (
-                            <span className="absolute -right-0.5 -top-0.5 text-[11px]">
-                              ⭐
-                            </span>
-                          ) : null}
-                        </div>
-                        <span className="line-clamp-2 w-full text-[10px] font-medium leading-tight text-[#333]">
-                          {c.name}
-                        </span>
-                      </button>
+                        {["YA", "AK", "RD"][i]}
+                      </div>
                     ))}
                   </div>
-
-                  <div className="hide-scrollbar mt-5 flex gap-2 overflow-x-auto pb-1">
-                    {[
-                      { icon: "📅", label: "Monthly Reminders" },
-                      { icon: "↻", label: "Self Transfer" },
-                      { icon: "▣", label: "Receive" },
-                    ].map((p) => (
-                      <button
-                        key={p.label}
-                        type="button"
-                        className="shrink-0 rounded-full border border-[#e5e7eb] bg-white px-4 py-2 text-[12px] font-semibold text-[#333] shadow-sm"
-                      >
-                        <span className="mr-1.5">{p.icon}</span>
-                        {p.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  <h3 className="mt-6 text-[13px] font-bold text-[#111]">
-                    Recent Payments
-                  </h3>
-                  <ul className="mt-2 space-y-0 divide-y divide-[#e8eaed] rounded-2xl bg-white shadow-sm ring-1 ring-[#eef0f3]">
-                    {recent.map((r) => (
-                      <li
-                        key={r.transactionId}
-                        className={
-                          r.isQr
-                            ? "flex items-stretch"
-                            : "flex items-stretch divide-x divide-[#e8eaed]"
-                        }
-                      >
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (r.isQr) {
-                              setSelected({
-                                id: "qr-merchant",
-                                name: r.name,
-                                identifierType: r.identifierType,
-                                identifier: r.identifier,
-                                initials: r.initials,
-                                avatarColor: r.avatarColor,
-                                avatarImageUrl: r.avatarImageUrl,
-                                verified: r.verified,
-                                starredSuggestion: false,
-                                favorite: false,
-                                categoryTag: r.categoryTag ?? "misc",
-                                qrPayment: true,
-                              });
-                              setAmountRaw("0");
-                              setMessage("");
-                              setMessageOpen(false);
-                              setStep("amount");
-                              return;
-                            }
-                            const c = contacts.find((x) => x.id === r.contactId);
-                            if (c) {
-                              setSelected(c);
-                              setAmountRaw("0");
-                              setMessage("");
-                              setMessageOpen(false);
-                              setStep("amount");
-                            }
-                          }}
-                          className="flex min-w-0 flex-1 items-center gap-3 px-3 py-3 text-left transition hover:bg-[#fafafa]"
-                        >
-                          <AvatarBubble contact={r} size={44} />
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1">
-                              <span className="truncate font-semibold text-[#111]">
-                                {r.name}
-                              </span>
-                              {r.verified ? <VerifiedBadge /> : null}
-                            </div>
-                            <p className="truncate text-[12px] text-[#666]">
-                              {r.identifier}
-                            </p>
-                            <p className="mt-0.5 text-[12px] text-[#15803d]">
-                              <span className="mr-0.5">₹</span>
-                              {formatInrAmount(r.amount)} Sent on{" "}
-                              {formatSentDay(r.sentAt)}
-                            </p>
-                          </div>
-                        </button>
-                        {r.isQr ? null : (
-                          <button
-                            type="button"
-                            onClick={() => void toggleFavorite(r.contactId)}
-                            className="flex shrink-0 items-center justify-center px-3 py-3 text-[#f59e0b] transition hover:bg-[#fafafa]"
-                            aria-label={
-                              r.favorite ? "Remove favorite" : "Favorite"
-                            }
-                          >
-                            {r.favorite ? "★" : "☆"}
-                          </button>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
+                </div>
+              </div>
             </div>
           </>
         ) : null}
 
-        {step === "amount" && selected ? (
+        {phase === "amount" && payee ? (
           <div className="relative flex min-h-0 flex-1 flex-col bg-[#f7f8fa]">
             <header className="flex shrink-0 items-center gap-2 px-2 py-2">
               <button
                 type="button"
                 onClick={() => {
                   setConfirmOpen(false);
-                  setStep("list");
+                  setPhase("scan");
+                  setPayee(null);
                 }}
                 className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-black/5"
                 aria-label="Back"
@@ -488,22 +354,22 @@ export default function PayAnyoneFlow({
             </header>
             <div className="flex flex-1 flex-col px-4 pb-0">
               <div className="flex flex-col items-center pt-2">
-                <AvatarBubble contact={selected} size={72} />
+                <AvatarBubble contact={payee} size={72} />
                 <div className="mt-3 flex items-center gap-1">
                   <span className="text-lg font-bold text-[#111]">
-                    {selected.name}
+                    {payee.name}
                   </span>
-                  {selected.verified ? <VerifiedBadge /> : null}
+                  {payee.verified ? <VerifiedBadge /> : null}
                 </div>
                 <p className="mt-1 flex items-center gap-1 text-[13px] text-[#666]">
-                  {selected.identifier}
+                  {payee.identifier}
                   <span className="text-[10px] font-bold text-[#00baf2]">
                     UPI
                   </span>
                 </p>
-                {selected.categoryTag ? (
+                {payee.categoryTag ? (
                   <span className="mt-2 rounded-full bg-[#e0f2fe] px-2.5 py-0.5 text-[10px] font-semibold capitalize text-[#0369a1]">
-                    {selected.categoryTag}
+                    {payee.categoryTag}
                   </span>
                 ) : null}
               </div>
@@ -634,7 +500,7 @@ export default function PayAnyoneFlow({
                       setConfirmOpen(false);
                       setPin("");
                       setPinError(null);
-                      setStep("pin");
+                      setPhase("pin");
                     }}
                     className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#00baf2] py-3.5 text-[16px] font-bold text-white"
                   >
@@ -652,7 +518,7 @@ export default function PayAnyoneFlow({
           </div>
         ) : null}
 
-        {step === "pin" && selected ? (
+        {phase === "pin" && payee ? (
           <div className="flex min-h-[100dvh] flex-col px-4 pb-safe sm:min-h-[560px]">
             <header className="flex shrink-0 items-start justify-between pt-3">
               <div>
@@ -664,7 +530,7 @@ export default function PayAnyoneFlow({
               <button
                 type="button"
                 onClick={() => {
-                  setStep("amount");
+                  setPhase("amount");
                   setPin("");
                   setPinError(null);
                   setConfirmOpen(true);
@@ -680,9 +546,7 @@ export default function PayAnyoneFlow({
                 <p className="text-2xl font-bold text-[#111]">
                   Pay ₹{formatInrAmount(amountNum)}
                 </p>
-                <p className="mt-1 text-[14px] text-[#555]">
-                  To {selected.name}
-                </p>
+                <p className="mt-1 text-[14px] text-[#555]">To {payee.name}</p>
               </div>
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#fed7aa] text-xl">
                 ₹→👤
@@ -718,7 +582,7 @@ export default function PayAnyoneFlow({
           </div>
         ) : null}
 
-        {step === "success" && successMeta ? (
+        {phase === "success" && successMeta ? (
           <div className="flex min-h-[100dvh] flex-col items-center px-6 pb-8 pt-10 text-white sm:min-h-[560px]">
             <p className="text-xl font-bold lowercase tracking-wide">paytm</p>
             <p className="mt-10 text-[15px] font-medium opacity-95">
@@ -747,7 +611,6 @@ export default function PayAnyoneFlow({
             </button>
           </div>
         ) : null}
-
       </div>
     </div>
   );

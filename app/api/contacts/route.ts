@@ -39,6 +39,19 @@ function serializeContact(
   };
 }
 
+type LeanTx = {
+  _id: Types.ObjectId;
+  amount: number;
+  contactId: LeanContact | null;
+  qrMerchantName?: string;
+  qrIdentifier?: string;
+  qrInitials?: string;
+  qrAvatarColor?: string;
+  qrTag?: string;
+  createdAt?: Date;
+  simulatedAt?: Date | null;
+};
+
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) {
@@ -65,13 +78,6 @@ export async function GET() {
     serializeContact(c as unknown as LeanContact, favoriteIds),
   );
 
-  type LeanTx = {
-    _id: Types.ObjectId;
-    amount: number;
-    contactId: LeanContact | null;
-    createdAt?: Date;
-  };
-
   const recentRaw = (await Transaction.find({ userId: user.id })
     .sort({ createdAt: -1 })
     .limit(12)
@@ -79,9 +85,13 @@ export async function GET() {
     .lean()
     .exec()) as unknown as LeanTx[];
 
-  const recent = recentRaw
-    .filter((t): t is LeanTx & { contactId: LeanContact } => Boolean(t.contactId))
-    .map((t) => {
+  const recent = recentRaw.map((t) => {
+    const sentAt = (
+      t.simulatedAt ??
+      t.createdAt ??
+      new Date(0)
+    ).toISOString();
+    if (t.contactId) {
       const c = t.contactId;
       return {
         transactionId: String(t._id),
@@ -95,9 +105,27 @@ export async function GET() {
         verified: c.verified,
         favorite: favoriteIds.has(String(c._id)),
         amount: t.amount,
-        sentAt: t.createdAt?.toISOString() ?? "",
+        sentAt,
+        isQr: false as const,
       };
-    });
+    }
+    return {
+      transactionId: String(t._id),
+      contactId: "",
+      name: t.qrMerchantName ?? "Merchant",
+      identifierType: "upi" as const,
+      identifier: t.qrIdentifier ?? "",
+      initials: t.qrInitials ?? "?",
+      avatarColor: t.qrAvatarColor ?? "#94a3b8",
+      avatarImageUrl: null as string | null,
+      verified: true,
+      favorite: false,
+      amount: t.amount,
+      sentAt,
+      isQr: true as const,
+      categoryTag: t.qrTag ?? "misc",
+    };
+  });
 
   return Response.json({ contacts, recent });
 }

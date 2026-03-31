@@ -5,6 +5,7 @@ const UserSchema = new Schema(
     email: { type: String, required: true, unique: true },
     displayName: { type: String, required: true },
     phone: { type: String },
+    accountBalance: { type: Number, default: 200_000 },
     favoriteContactIds: {
       type: [{ type: Schema.Types.ObjectId, ref: "Contact" }],
       default: [],

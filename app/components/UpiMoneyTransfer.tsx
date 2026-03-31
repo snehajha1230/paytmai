@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import BalanceHistoryModal from "@/app/components/BalanceHistoryModal";
 import PayAnyoneFlow from "@/app/components/PayAnyoneFlow";
+import ScanAnyQrFlow from "@/app/components/ScanAnyQrFlow";
+import BankTransferModal from "@/app/components/BankTransferModal";
 
 function IconCircle({ children }: { children: React.ReactNode }) {
   return (
@@ -91,9 +94,21 @@ const actions = [
 
 export default function UpiMoneyTransfer() {
   const [payAnyoneOpen, setPayAnyoneOpen] = useState(false);
+  const [scanQrOpen, setScanQrOpen] = useState(false);
+  const [balanceHistoryOpen, setBalanceHistoryOpen] = useState(false);
+  const [bankTransferOpen, setBankTransferOpen] = useState(false);
 
   return (
     <section className="rounded-[18px] bg-white px-5 py-5 shadow-[0_1px_4px_rgba(0,0,0,0.06)] sm:px-8 sm:py-6 md:px-10">
+      <BalanceHistoryModal
+        open={balanceHistoryOpen}
+        onClose={() => setBalanceHistoryOpen(false)}
+      />
+      <ScanAnyQrFlow open={scanQrOpen} onClose={() => setScanQrOpen(false)} />
+      <BankTransferModal
+        open={bankTransferOpen}
+        onClose={() => setBankTransferOpen(false)}
+      />
       <PayAnyoneFlow open={payAnyoneOpen} onClose={() => setPayAnyoneOpen(false)} />
       <h2 className="text-base font-bold text-[#333] md:text-lg">
         UPI Money Transfer
@@ -104,7 +119,10 @@ export default function UpiMoneyTransfer() {
             key={a.label.join("-")}
             type="button"
             onClick={() => {
+              if (a.id === "scan") setScanQrOpen(true);
               if (a.id === "payAnyone") setPayAnyoneOpen(true);
+              if (a.id === "balance") setBalanceHistoryOpen(true);
+              if (a.id === "bank") setBankTransferOpen(true);
             }}
             className="flex flex-col items-center gap-2.5 text-center transition-opacity hover:opacity-90"
           >
