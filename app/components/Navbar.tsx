@@ -9,6 +9,8 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { useAuth } from "@/app/components/AuthProvider";
+import LoginModal from "@/app/components/LoginModal";
 import paytmupi from "../images/paytmupi.png";
 import logoutImg from "../images/logoutImg.png";
 
@@ -85,7 +87,11 @@ function ChevronDown({ className }: { className?: string }) {
 }
 
 export default function Navbar() {
+  const { user, loading, login, logout } = useAuth();
+  const [loginOpen, setLoginOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<NavLabel | null>(null);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
   const triggersRef = useRef<Partial<Record<NavLabel, HTMLButtonElement>>>({});
@@ -152,6 +158,27 @@ export default function Navbar() {
     return () => window.removeEventListener("keydown", onKey);
   }, [openMenu]);
 
+  useEffect(() => {
+    if (!profileMenuOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      if (
+        profileMenuRef.current &&
+        !profileMenuRef.current.contains(e.target as Node)
+      ) {
+        setProfileMenuOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setProfileMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [profileMenuOpen]);
+
   const activeLinks =
     NAV_ITEMS.find((i) => i.label === openMenu)?.links ?? [];
 
@@ -204,6 +231,11 @@ export default function Navbar() {
 
   return (
     <>
+      <LoginModal
+        open={loginOpen}
+        onClose={() => setLoginOpen(false)}
+        onLogin={login}
+      />
       {portal}
 
       <header className="sticky top-0 z-[100] border-b border-[#e8e8e8] bg-white py-4 shadow-[0_1px_0_rgba(0,0,0,0.04)] md:py-5">
@@ -256,22 +288,77 @@ export default function Navbar() {
             })}
           </nav>
 
-          <div className="ml-auto flex shrink-0 items-center pl-3 sm:pl-4 md:pl-6 lg:pl-8">
-            <button
-              type="button"
-              className="flex shrink-0 items-center gap-2.5 rounded-full bg-[#002e6e] py-2 pl-2 pr-4 text-[13px] font-semibold text-white transition hover:bg-[#00265c] md:pr-5"
-            >
-              <span className="flex h-[30px] w-[30px] items-center justify-center overflow-hidden rounded-full bg-[#8ecfff] md:h-8 md:w-8">
-                <Image
-                  src={logoutImg}
-                  alt=""
-                  width={20}
-                  height={20}
-                  className="object-contain"
-                />
-              </span>
-              Sign In
-            </button>
+          <div className="ml-auto flex shrink-0 items-center gap-2 pl-3 sm:gap-2.5 sm:pl-4 md:gap-3 md:pl-6 lg:pl-8">
+            {user ? (
+              <>
+                <div className="relative shrink-0" ref={profileMenuRef}>
+                  <button
+                    type="button"
+                    aria-expanded={profileMenuOpen}
+                    aria-haspopup="true"
+                    aria-label="Account menu"
+                    onClick={() => setProfileMenuOpen((o) => !o)}
+                    className="flex h-[30px] w-[30px] items-center justify-center overflow-hidden rounded-full bg-[#8ecfff] ring-2 ring-transparent transition hover:ring-[#00baf2]/40 md:h-8 md:w-8"
+                  >
+                    <Image
+                      src={logoutImg}
+                      alt=""
+                      width={20}
+                      height={20}
+                      className="object-contain"
+                    />
+                  </button>
+                  {profileMenuOpen ? (
+                    <div
+                      role="menu"
+                      className="absolute right-0 top-[calc(100%+8px)] z-[160] w-max min-w-[200px] rounded-[10px] border border-[#e3e3e3] bg-white py-1 shadow-[0_12px_40px_rgba(0,0,0,0.15)]"
+                    >
+                      <a
+                        href="#"
+                        role="menuitem"
+                        className="block px-5 py-[11px] text-[14px] font-semibold leading-snug tracking-tight text-[#101010] hover:bg-[#f3f6f8]"
+                        onClick={() => setProfileMenuOpen(false)}
+                      >
+                        Paytm AI
+                      </a>
+                      <a
+                        href="#"
+                        role="menuitem"
+                        className="block px-5 py-[11px] text-[14px] font-semibold leading-snug tracking-tight text-[#101010] hover:bg-[#f3f6f8]"
+                        onClick={() => setProfileMenuOpen(false)}
+                      >
+                        Help and Support
+                      </a>
+                    </div>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void logout()}
+                  className="flex shrink-0 items-center rounded-full bg-[#002e6e] px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-[#00265c] md:px-5"
+                >
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => setLoginOpen(true)}
+                className="flex shrink-0 items-center gap-2.5 rounded-full bg-[#002e6e] py-2 pl-2 pr-4 text-[13px] font-semibold text-white transition hover:bg-[#00265c] disabled:opacity-60 md:pr-5"
+              >
+                <span className="flex h-[30px] w-[30px] items-center justify-center overflow-hidden rounded-full bg-[#8ecfff] md:h-8 md:w-8">
+                  <Image
+                    src={logoutImg}
+                    alt=""
+                    width={20}
+                    height={20}
+                    className="object-contain"
+                  />
+                </span>
+                Sign In
+              </button>
+            )}
           </div>
         </div>
       </header>

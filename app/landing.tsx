@@ -2,6 +2,8 @@
 
 import Image, { type StaticImageData } from "next/image";
 import { useState } from "react";
+import { useAuth } from "@/app/components/AuthProvider";
+import UpiMoneyTransfer from "@/app/components/UpiMoneyTransfer";
 import mobilerec from "./images/mobilerec.png";
 import dth from "./images/dth.png";
 import fastag from "./images/fastag.png";
@@ -59,6 +61,7 @@ const travelTabs = [
 ];
 
 export default function Landing() {
+  const { user } = useAuth();
   const [activeTravel, setActiveTravel] = useState<
     "flights" | "bus" | "trains" | "intl"
   >("flights");
@@ -69,6 +72,11 @@ export default function Landing() {
       <Navbar />
 
       <main className="mx-auto max-w-[1180px] px-4 pb-16 pt-7 sm:px-6 md:pt-8 md:px-8 lg:px-10">
+        {user ? (
+          <div className="mb-5 md:mb-6">
+            <UpiMoneyTransfer />
+          </div>
+        ) : null}
         <div className="grid grid-cols-1 items-stretch gap-1 lg:grid-cols-[minmax(0,7.15fr)_minmax(0,2.85fr)] lg:gap-x-1.5">
           <section className="flex min-h-[min(52vw,280px)] min-w-0 flex-col rounded-[18px] bg-white p-5 shadow-[0_1px_4px_rgba(0,0,0,0.06)] sm:min-h-[260px] sm:p-6 md:min-h-[280px] md:p-7 lg:min-h-[300px] lg:p-8">
             <h1 className="shrink-0 text-left text-base font-bold text-black md:text-lg">
