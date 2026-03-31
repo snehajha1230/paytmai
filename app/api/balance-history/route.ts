@@ -1,4 +1,5 @@
 import { connectMongo } from "@/lib/mongodb";
+import { MOBILE_RECHARGE_MESSAGE_PREFIX } from "@/lib/mobile-recharge-plans";
 import { Transaction } from "@/lib/models/Transaction";
 import { User } from "@/lib/models/User";
 import { getCurrentUser } from "@/lib/session-user";
@@ -20,6 +21,7 @@ type LeanContact = {
 type LeanTx = {
   _id: Types.ObjectId;
   amount: number;
+  message?: string;
   contactId: LeanContact | null;
   qrMerchantName?: string;
   qrIdentifier?: string;
@@ -75,6 +77,8 @@ export async function GET() {
     const at = displayTime(t);
     if (t.contactId) {
       const c = t.contactId;
+      const msg = typeof t.message === "string" ? t.message : "";
+      const isBillPayment = msg.startsWith(MOBILE_RECHARGE_MESSAGE_PREFIX);
       return {
         id: String(t._id),
         contactId: String(c._id),
@@ -87,7 +91,7 @@ export async function GET() {
         verified: c.verified,
         amount: t.amount,
         displayedAt: at.toISOString(),
-        tag: "Money Transfer" as const,
+        tag: isBillPayment ? "Bill Payment" : "Money Transfer",
       };
     }
     const rawTag = typeof t.qrTag === "string" && t.qrTag ? t.qrTag : "misc";

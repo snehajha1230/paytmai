@@ -260,7 +260,7 @@ export default function PayAnyoneFlow({
           step === "pin"
             ? "min-h-[100dvh] bg-[#fff7ed] sm:min-h-0 sm:rounded-[28px]"
             : step === "success"
-              ? "min-h-[100dvh] bg-[#22c55e] sm:min-h-0"
+              ? "min-h-[100dvh] rounded-t-3xl bg-[#22c55e] sm:min-h-0 sm:rounded-[28px]"
               : "rounded-t-3xl bg-[#f0f2f5] sm:rounded-[28px]"
         }`}
         onClick={(e) => e.stopPropagation()}

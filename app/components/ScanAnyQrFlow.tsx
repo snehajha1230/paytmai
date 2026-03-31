@@ -156,7 +156,7 @@ export default function ScanAnyQrFlow({
     phase === "pin"
       ? "min-h-[100dvh] bg-[#fff7ed] sm:min-h-0 sm:rounded-[28px]"
       : phase === "success"
-        ? "min-h-[100dvh] bg-[#22c55e] sm:min-h-0"
+        ? "min-h-[100dvh] rounded-t-3xl bg-[#22c55e] sm:min-h-0 sm:rounded-[28px]"
         : phase === "scan"
           ? "min-h-[100dvh] rounded-none bg-[#0a0a0a] sm:min-h-[min(720px,92vh)] sm:rounded-[28px]"
           : "rounded-t-3xl bg-[#f0f2f5] sm:rounded-[28px]";

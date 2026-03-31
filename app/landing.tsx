@@ -3,6 +3,8 @@
 import Image, { type StaticImageData } from "next/image";
 import { useState } from "react";
 import { useAuth } from "@/app/components/AuthProvider";
+import LoginModal from "@/app/components/LoginModal";
+import MobileRechargeFlow from "@/app/components/MobileRechargeFlow";
 import UpiMoneyTransfer from "@/app/components/UpiMoneyTransfer";
 import mobilerec from "./images/mobilerec.png";
 import dth from "./images/dth.png";
@@ -28,25 +30,28 @@ import Navbar from "@/app/components/Navbar";
 function ServiceItem({
   icon,
   label,
+  onClick,
 }: {
   icon: StaticImageData;
   label: string;
+  onClick?: () => void;
 }) {
   return (
     <button
       type="button"
-      className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-center transition-colors hover:bg-[#f0f9fc] sm:gap-2 sm:px-2.5 sm:py-2.5 md:px-3"
+      onClick={onClick}
+      className="flex flex-col items-center gap-1 rounded-xl px-1.5 py-1.5 text-center transition-colors hover:bg-[#f0f9fc] sm:gap-1.5 sm:px-2 sm:py-2 md:px-2.5"
     >
-      <span className="flex h-14 w-14 items-center justify-center sm:h-16 sm:w-16 md:h-[4.5rem] md:w-[4.5rem]">
+      <span className="flex h-11 w-11 items-center justify-center sm:h-[3.2rem] sm:w-[3.2rem] md:h-[3.6rem] md:w-[3.6rem]">
         <Image
           src={icon}
           alt=""
           width={56}
           height={56}
-          className="h-12 w-12 object-contain sm:h-14 sm:w-14 md:h-[3.25rem] md:w-[3.25rem]"
+          className="h-9 w-9 object-contain sm:h-11 sm:w-11 md:h-[2.6rem] md:w-[2.6rem]"
         />
       </span>
-      <span className="max-w-[6rem] text-[11px] leading-tight font-medium text-[#555] sm:max-w-[6.5rem] sm:text-xs md:max-w-[7rem] md:text-[13px]">
+      <span className="max-w-[5.5rem] text-[10px] leading-tight font-medium text-[#555] sm:max-w-[5.75rem] sm:text-[11px] md:max-w-[6rem] md:text-xs">
         {label}
       </span>
     </button>
@@ -61,7 +66,9 @@ const travelTabs = [
 ];
 
 export default function Landing() {
-  const { user } = useAuth();
+  const { user, login } = useAuth();
+  const [mobileRechargeOpen, setMobileRechargeOpen] = useState(false);
+  const [mobileLoginOpen, setMobileLoginOpen] = useState(false);
   const [activeTravel, setActiveTravel] = useState<
     "flights" | "bus" | "trains" | "intl"
   >("flights");
@@ -69,7 +76,21 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-[#eef3f8] text-[#1a1a1a]">
+      <LoginModal
+        open={mobileLoginOpen}
+        onClose={() => setMobileLoginOpen(false)}
+        onLogin={async () => {
+          await login();
+          setMobileRechargeOpen(true);
+        }}
+      />
       <Navbar />
+      <MobileRechargeFlow
+        open={mobileRechargeOpen}
+        onClose={() => setMobileRechargeOpen(false)}
+        userPhone={user?.phone ?? null}
+        userDisplayName={user?.displayName ?? "You"}
+      />
 
       <main className="mx-auto max-w-[1180px] px-4 pb-16 pt-7 sm:px-6 md:pt-8 md:px-8 lg:px-10">
         {user ? (
@@ -78,13 +99,20 @@ export default function Landing() {
           </div>
         ) : null}
         <div className="grid grid-cols-1 items-stretch gap-1 lg:grid-cols-[minmax(0,7.15fr)_minmax(0,2.85fr)] lg:gap-x-1.5">
-          <section className="flex min-h-[min(52vw,280px)] min-w-0 flex-col rounded-[18px] bg-white p-5 shadow-[0_1px_4px_rgba(0,0,0,0.06)] sm:min-h-[260px] sm:p-6 md:min-h-[280px] md:p-7 lg:min-h-[300px] lg:p-8">
-            <h1 className="shrink-0 text-left text-base font-bold text-black md:text-lg">
+          <section className="flex min-h-[min(41.6vw,224px)] min-w-0 flex-col rounded-[18px] bg-white p-4 shadow-[0_1px_4px_rgba(0,0,0,0.06)] sm:min-h-[208px] sm:p-[1.2rem] md:min-h-[224px] md:p-[1.4rem] lg:min-h-[240px] lg:p-6">
+            <h1 className="shrink-0 text-left text-[15px] font-bold leading-snug text-black md:text-base">
               Recharges &amp; Bill Payments
             </h1>
-            <div className="flex min-h-0 flex-1 flex-col items-center justify-center py-4 md:py-5">
-              <div className="mx-auto grid w-max max-w-full grid-cols-3 place-items-center gap-x-2 gap-y-4 sm:gap-x-3 sm:gap-y-5 md:grid-cols-6 md:gap-x-5 md:gap-y-0 lg:gap-x-6">
-                <ServiceItem icon={mobilerec} label="Mobile Recharge" />
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center py-3 md:py-4">
+              <div className="mx-auto grid w-max max-w-full grid-cols-3 place-items-center gap-x-2 gap-y-3 sm:gap-x-2.5 sm:gap-y-4 md:grid-cols-6 md:gap-x-4 md:gap-y-0 lg:gap-x-5">
+                <ServiceItem
+                  icon={mobilerec}
+                  label="Mobile Recharge"
+                  onClick={() => {
+                    if (!user) setMobileLoginOpen(true);
+                    else setMobileRechargeOpen(true);
+                  }}
+                />
                 <ServiceItem icon={dth} label="DTH Recharge" />
                 <ServiceItem icon={fastag} label="FasTag Recharge" />
                 <ServiceItem icon={electricity} label="Electricity Bill" />

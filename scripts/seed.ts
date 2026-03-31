@@ -8,6 +8,17 @@ loadEnvConfig(process.cwd());
 
 const CONTACTS = [
   {
+    slug: "demo-self-mobile",
+    name: "Paytmai User",
+    identifierType: "phone" as const,
+    identifier: "+91 98765 43210",
+    initials: "P",
+    avatarColor: "#e11d48",
+    verified: true,
+    starredSuggestion: false,
+    sortOrder: -1,
+  },
+  {
     slug: "yogesh-singh-adhikari",
     name: "Yogesh Singh Adhikari",
     identifierType: "upi" as const,
@@ -218,7 +229,7 @@ async function main() {
     { $set: { accountBalance: 200_000 - totalSpent } },
   ).exec();
 
-  console.log("Seeded user demo@paytmai.local, 12 contacts, sample transactions.");
+  console.log("Seeded user demo@paytmai.local, 13 contacts, sample transactions.");
 }
 
 main()
