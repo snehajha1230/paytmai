@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 import QRCode from "react-qr-code";
 import paytmupi from "../images/paytmupi.png";
+import googleplay from "../images/googleplay.png";
 
 type LoginModalProps = {
   open: boolean;
@@ -65,7 +66,7 @@ export default function LoginModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="login-modal-title"
-        className="relative z-[210] w-full max-w-[min(100%,440px)] rounded-2xl bg-white px-5 pb-5 pt-6 shadow-[0_24px_80px_rgba(0,0,0,0.2)] sm:px-7 sm:pb-6 sm:pt-7"
+        className="relative z-[210] w-full max-w-[min(100%,468px)] rounded-2xl bg-white px-5 pb-5 pt-6 shadow-[0_24px_80px_rgba(0,0,0,0.2)] sm:px-7 sm:pb-6 sm:pt-7"
       >
         <button
           type="button"
@@ -193,32 +194,16 @@ export default function LoginModal({
               href="https://play.google.com/store/apps/details?id=net.one97.paytm"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-10 min-w-[150px] items-center justify-center gap-1.5 rounded-md border border-[#a8a8a8] bg-[#000] px-3 text-[11px] font-semibold text-white hover:bg-[#222]"
+              className="inline-flex items-center justify-center rounded-md"
+              aria-label="Get it on Google Play"
             >
-              <svg width="16" height="18" viewBox="0 0 24 28" aria-hidden>
-                <path
-                  fill="#EA4335"
-                  d="M1.2 24.5c-.7-.4-1.2-1.1-1.2-1.9V5.4c0-.8.5-1.5 1.2-1.9l12.4 10.1L1.2 24.5z"
-                />
-                <path
-                  fill="#FBBC04"
-                  d="M23.8 12.6L19 9.7l-5.4 4.4 5.4 4.4 4.8-2.9c1.5-.9 1.5-3.1 0-4z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M13.6 18.1L1.2 28.4c.7.4 1.6.4 2.3 0l12.1-9.8-2-2.5z"
-                />
-                <path
-                  fill="#4285F4"
-                  d="M1.2.6C.5 1 .1 1.7.1 2.5v23c0 .8.4 1.5 1.1 1.9l12.4-10.1L1.2.6z"
-                />
-              </svg>
-              <span className="text-left leading-tight">
-                <span className="block text-[9px] font-normal opacity-90">
-                  GET IT ON
-                </span>
-                Google Play
-              </span>
+              <Image
+                src={googleplay}
+                alt="Get it on Google Play"
+                width={150}
+                height={45}
+                className="h-10 w-auto object-contain"
+              />
             </a>
           </div>
         </div>

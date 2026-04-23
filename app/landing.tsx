@@ -98,7 +98,7 @@ export default function Landing() {
             <UpiMoneyTransfer />
           </div>
         ) : null}
-        <div className="grid grid-cols-1 items-stretch gap-1 lg:grid-cols-[minmax(0,7.15fr)_minmax(0,2.85fr)] lg:gap-x-1.5">
+        <div className="grid grid-cols-1 items-stretch gap-1 lg:grid-cols-[minmax(0,7.15fr)_minmax(0,2.85fr)] lg:gap-x-3">
           <section className="flex min-h-[min(41.6vw,224px)] min-w-0 flex-col rounded-[18px] bg-white p-4 shadow-[0_1px_4px_rgba(0,0,0,0.06)] sm:min-h-[208px] sm:p-[1.2rem] md:min-h-[224px] md:p-[1.4rem] lg:min-h-[240px] lg:p-6">
             <h1 className="shrink-0 text-left text-[15px] font-bold leading-snug text-black md:text-base">
               Recharges &amp; Bill Payments

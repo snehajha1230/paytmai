@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 export type HistoryTransaction = {
@@ -126,6 +127,7 @@ export default function BalanceHistoryModal({
   const [sbiBalance, setSbiBalance] = useState<number | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [balanceError, setBalanceError] = useState<string | null>(null);
+  const router = useRouter();
 
   const loadHistory = useCallback(async () => {
     setLoading(true);
@@ -283,6 +285,32 @@ export default function BalanceHistoryModal({
                 {balanceLoading ? "Checking…" : "Check Balance"}
               </button>
             </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                router.push("/pati-ae");
+              }}
+              className="relative w-[min(88vw,300px)] shrink-0 overflow-hidden rounded-2xl bg-white p-4 text-left shadow-sm ring-1 ring-[#bae6fd] transition hover:ring-2 hover:ring-[#00baf2]/40"
+            >
+              <div className="pointer-events-none absolute -right-6 -top-8 h-24 w-24 rounded-full bg-[#00baf2]/15" />
+              <div className="pointer-events-none absolute -bottom-4 -left-4 h-16 w-16 rounded-full bg-[#38bdf8]/20" />
+              <div className="relative flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-[15px] font-bold text-[#0f172a]">PatiAe</p>
+                  <p className="mt-0.5 text-[12px] leading-snug text-[#64748b]">
+                    Budget, charts &amp; spending insights
+                  </p>
+                </div>
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#00baf2] to-[#0284c7] text-[10px] font-bold text-white shadow-sm">
+                  AI
+                </div>
+              </div>
+              <span className="relative mt-3 flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-[#e0f7fc] to-[#dbeafe] py-2.5 text-[13px] font-bold text-[#0369a1]">
+                Open PatiAe
+              </span>
+            </button>
 
             <div className="w-[min(72vw,260px)] shrink-0 rounded-2xl bg-white/90 p-4 shadow-sm ring-1 ring-[#e2e8f0]">
               <p className="text-[15px] font-bold text-[#111]">UPI Lite</p>

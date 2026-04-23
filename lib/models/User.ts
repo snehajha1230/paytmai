@@ -1,4 +1,5 @@
 import mongoose, { Schema } from "mongoose";
+import { PatiAeBudgetSchema } from "@/lib/models/PatiAeBudget";
 
 const UserSchema = new Schema(
   {
@@ -10,6 +11,7 @@ const UserSchema = new Schema(
       type: [{ type: Schema.Types.ObjectId, ref: "Contact" }],
       default: [],
     },
+    patiAeBudget: { type: PatiAeBudgetSchema, required: false },
   },
   { timestamps: true },
 );
